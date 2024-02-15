@@ -1,0 +1,17 @@
+[package]
+name = "cliper"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+zip = "0.5" # 确保使用最新版本号
+prettytable-rs = "0.8.0" # 表格的打印
+xml-rs = "0.8.3" # xml解析
+axmldecoder = "*"
+serde = { version = "1.0.155", features = ["derive"] }
+serde_json = "1.0"
+base64 = "0.20.0"
+funty = "3.0.0-rc2"
+async-std = "1.10.0"

@@ -341,6 +341,7 @@ dependencies = [
  "async-std",
  "axmldecoder",
  "base64 0.20.0",
+ "csv",
  "funty 3.0.0-rc2",
  "prettytable-rs",
  "serde",

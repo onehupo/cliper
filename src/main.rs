@@ -1,6 +1,9 @@
-use std::{env, result};
-use prettytable::{cell, row, Cell, Row, Table};
+use std::fs::File;
+use std::{env, fs};
+
 use async_std::task;
+use csv::Writer;
+use prettytable::{cell, row, Cell, Row, Table};
 use structopt::StructOpt;
 
 mod app;
@@ -18,14 +21,14 @@ use cliper::cliper_info::CliperInfo;
 struct CliperFilter {
     #[structopt(short, long, help = "debug")]
     debug: bool,
-    #[structopt(long, default_value="", help = "过滤路径")]
+    #[structopt(long, default_value = "", help = "过滤路径")]
     filter_path: String,
-    #[structopt(long, default_value="0", help = "过滤大小")]
+    #[structopt(long, default_value = "0", help = "过滤大小")]
     filter_size: u64,
-    #[structopt(long, default_value="", help = "过滤后缀")]
+    #[structopt(long, default_value = "", help = "过滤后缀")]
     filter_ext: String,
-    #[structopt(long, default_value="", help = "过滤类型")]
-    filter_type: String
+    #[structopt(long, default_value = "", help = "过滤类型")]
+    filter_type: String,
 }
 // 添加一个过滤器，过滤掉不需要的文件, 满足条件的返回true
 fn cliper_filter(info: &CliperInfo, filter: &CliperFilter) -> bool {
@@ -33,7 +36,7 @@ fn cliper_filter(info: &CliperInfo, filter: &CliperFilter) -> bool {
     let size_filter = &filter.filter_size;
     let ext_filter = filter.filter_ext.as_str();
     let type_filter = filter.filter_type.as_str();
-    
+
     let mut result = true;
     // 过滤路径 路径不为空并且不是以过滤路径开头的，为true，不满足条件
     let filter_path_enable = !path_filter.is_empty() && !info.file_path.starts_with(path_filter);
@@ -56,12 +59,12 @@ async fn read_info(filename: &str) {
             let message = format!("APK Information:\nFile: {}\nPackage{}\nIcon: {}\nVersion Code: {}\nVersion Name: {}", 
                 filename, value.package_name, value.icon, value.version_code, value.version_name);
             println_message(message.as_str());
-        },
+        }
         None => {
             println!("");
             printline();
             println!("Failed to read APK information");
-            printline();  
+            printline();
         }
     }
 }
@@ -71,7 +74,16 @@ async fn read_detail_info(filename: &str, filter: &CliperFilter) {
         Ok(value) => {
             let mut table = Table::new();
             let mut line_num = 0;
-            table.add_row(row!["id", "Folder Path", "Name", "Size", "Download", "Type", "File Type", "File Folder"]);
+            table.add_row(row![
+                "id",
+                "Folder Path",
+                "Name",
+                "Size",
+                "Download",
+                "Type",
+                "File Type",
+                "File Folder"
+            ]);
             for cliper_item in &value {
                 if !cliper_filter(cliper_item, filter) {
                     continue;
@@ -97,18 +109,24 @@ async fn read_detail_info(filename: &str, filter: &CliperFilter) {
                 let limit = 10;
                 let mut limited_table = Table::new();
                 for row in table.row_iter().take(limit) {
-                    limited_table.add_row(Row::new(row.iter().map(|cell| Cell::new(&cell.get_content())).collect()));
+                    limited_table.add_row(Row::new(
+                        row.iter()
+                            .map(|cell| Cell::new(&cell.get_content()))
+                            .collect(),
+                    ));
                 }
                 limited_table.printstd();
                 println!("> For more details, please use --debug option or -d option")
             }
-            printline();  
-        },
+            printline();
+            let output = getBuildDir() + "/table_detail.csv";
+            create_csv(&table, &output);
+        }
         Err(e) => {
             println!("");
             printline();
             println!("Failed to read APK information: {}", e);
-            printline();  
+            printline();
         }
     }
 }
@@ -124,18 +142,20 @@ async fn read_total(filename: &str) {
                 Cell::new(&value.convert_size(value.code)),
                 Cell::new(&value.convert_size(value.native)),
                 Cell::new(&value.convert_size(value.others)),
-                Cell::new(&value.convert_size(value.all))
+                Cell::new(&value.convert_size(value.all)),
             ]));
             println!("");
             printline();
             table.printstd();
             printline();
-        },
+            let output = getBuildDir() + "/table_total.csv";
+            create_csv(&table, &output);
+        }
         Err(e) => {
             println!("");
             printline();
             println!("Failed to read APK information: {}", e);
-            printline();  
+            printline();
         }
     }
 }
@@ -151,6 +171,26 @@ fn println_message(messge: &str) {
     printline();
 }
 
+fn create_csv(table: &Table, output: &str) {
+    let mut wtr = Writer::from_writer(File::create(output).expect("Cannot create file"));
+    for row in table.row_iter() {
+        let v: Vec<String> = row.iter().map(|cell| cell.get_content()).collect();
+        wtr.write_record(&v).expect("Cannot write record");
+    }
+    wtr.flush().expect("Cannot flush");
+}
+
+fn getProjectDir() -> String {
+    let project_path = env::current_dir().unwrap();
+    return project_path.display().to_string();
+}
+
+fn getBuildDir() -> String {
+    let project_path = env::current_dir().unwrap();
+    let build_path = project_path.join("build");
+    return build_path.display().to_string();
+}
+
 fn main() {
     // 解析输入的命令
     let args: Vec<String> = std::env::args().collect();
@@ -162,24 +202,16 @@ fn main() {
     let apk_path = build_path.join("app.apk").to_str().unwrap().to_string();
 
     let mut system_message = String::from("");
-    system_message.push_str(format!("args: {:?}",args).as_str());
-    system_message.push_str(format!("\nCurrent Path: {}",project_path.display()).as_str());
-    system_message.push_str(format!("\nBuild Path: {}",build_path.display()).as_str());
+    system_message.push_str(format!("args: {:?}", args).as_str());
+    system_message.push_str(format!("\nCurrent Path: {}", project_path.display()).as_str());
+    system_message.push_str(format!("\nBuild Path: {}", build_path.display()).as_str());
     println_message(system_message.as_str());
-    
+
     task::block_on(read_info(&apk_path));
 
     task::block_on(read_total(&apk_path));
 
     let filter = CliperFilter::from_args();
-    // let filter = CliperFilter {
-    //     path_filter: "".to_string(),
-    //     size_filter: 10000,
-    //     ext_filter: "".to_string(),
-    //     type_filter: "Res".to_string()
-    // };
+
     task::block_on(read_detail_info(&apk_path, &filter));
 }
-
-
-

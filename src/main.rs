@@ -19,6 +19,34 @@ async fn parse(filename: &str) {
 }
 
 async fn read_size(filename: &str) {
+    match size_reader::read_detail_info(filename) {
+        Ok(value) => {
+            let mut table = Table::new();
+            let mut line_num = 0;
+            table.add_row(row!["id", "Folder Path", "Name", "Size", "Download", "Type", "File Type", "File Folder"]);
+            let length = value.len();
+            println!("Total: {}", length);
+            for cliper_item in value {
+                table.add_row(Row::new(vec![
+                    Cell::new(&cliper_item.id.to_string()),
+                    Cell::new(&cliper_item.file_path),
+                    Cell::new(&cliper_item.name),
+                    Cell::new(&cliper_item.size.to_string()),
+                    Cell::new(&cliper_item.download.to_string()),
+                    Cell::new(&cliper_item.file_ext),
+                    Cell::new(&cliper_item.file_type.to_string()),
+                    Cell::new(&cliper_item.file_folder),
+                ]));
+                line_num += 1;
+                if line_num > 10 {
+                    break;
+                }
+            }
+            table.printstd();
+        },
+        Err(e) => println!("Failed to read APK information: {}", e)
+    }
+
     match size_reader::read_size(filename) {
         Ok(value) => {
             let mut table = Table::new();

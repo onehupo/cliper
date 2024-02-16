@@ -25,6 +25,8 @@ done
 
 csv等文件存储
 
+done
+
 4. 如何区分文件是否是新增的文件
 
 对比两个apk的数据是否有差异
@@ -32,3 +34,7 @@ csv等文件存储
 删除文件
 新增文件
 差异的文件
+
+```rust
+cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+```

@@ -3,7 +3,7 @@ use std::{env, fs};
 
 use async_std::task;
 use csv::Writer;
-use prettytable::{cell, row, Cell, Row, Table};
+use prettytable::{cell, format, row, Cell, Row, Table};
 use structopt::StructOpt;
 
 mod app;
@@ -15,12 +15,15 @@ use cliper::cliper_info::CliperInfo;
 /**
  * 过滤器
  * 过滤路径，过滤大小，过滤后缀，过滤类型
- * cargo run -- --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+ * cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+ * cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
  */
 #[derive(Debug, StructOpt)]
 struct CliperFilter {
     #[structopt(short, long, help = "debug")]
     debug: bool,
+    #[structopt(long, default_value = "", help = "输入文件")]
+    input: String,
     #[structopt(long, default_value = "", help = "过滤路径")]
     filter_path: String,
     #[structopt(long, default_value = "0", help = "过滤大小")]
@@ -119,7 +122,7 @@ async fn read_detail_info(filename: &str, filter: &CliperFilter) {
                 println!("> For more details, please use --debug option or -d option")
             }
             printline();
-            let output = getBuildDir() + "/table_detail.csv";
+            let output = get_build_dir() + "/table_detail.csv";
             create_csv(&table, &output);
         }
         Err(e) => {
@@ -148,7 +151,7 @@ async fn read_total(filename: &str) {
             printline();
             table.printstd();
             printline();
-            let output = getBuildDir() + "/table_total.csv";
+            let output = get_build_dir() + "/table_total.csv";
             create_csv(&table, &output);
         }
         Err(e) => {
@@ -180,38 +183,56 @@ fn create_csv(table: &Table, output: &str) {
     wtr.flush().expect("Cannot flush");
 }
 
-fn getProjectDir() -> String {
+fn get_current_dir() -> String {
     let project_path = env::current_dir().unwrap();
     return project_path.display().to_string();
 }
 
-fn getBuildDir() -> String {
+fn get_build_dir() -> String {
     let project_path = env::current_dir().unwrap();
     let build_path = project_path.join("build");
     return build_path.display().to_string();
+}
+
+fn build_file(filename: &str) -> String {
+    let project_path = env::current_dir().unwrap();
+    let build_path = project_path.join("build");
+    let apk_path = build_path.join(filename).to_str().unwrap().to_string();
+    return apk_path;
 }
 
 fn main() {
     // 解析输入的命令
     let args: Vec<String> = std::env::args().collect();
     // 读取工程根目录
-    let project_path = env::current_dir().unwrap();
+    let current_path = get_current_dir();
     // 根目录下面的build文件
-    let build_path = project_path.join("build");
+    let build_path = get_build_dir();
+    // 解析过滤器
+    let filter = CliperFilter::from_args();
     // build目录下的apk文件
-    let apk_path = build_path.join("app.apk").to_str().unwrap().to_string();
+    if filter.input.is_empty() {
+        println!("Please input the apk file");
+        return;
+    }
+    // let apk_path = build_file("app.apk");
+    let mut apk_path = filter.input.clone();
+    if apk_path.starts_with(".") {
+        apk_path = format!("{}/{}", &current_path, &apk_path);
+    }
 
     let mut system_message = String::from("");
     system_message.push_str(format!("args: {:?}", args).as_str());
-    system_message.push_str(format!("\nCurrent Path: {}", project_path.display()).as_str());
-    system_message.push_str(format!("\nBuild Path: {}", build_path.display()).as_str());
+    system_message.push_str(format!("\nCurrent Path: {}", current_path).as_str());
+    system_message.push_str(format!("\nBuild Path: {}", build_path).as_str());
+    system_message.push_str(format!("\ninput Path: {}", apk_path).as_str());
     println_message(system_message.as_str());
 
     task::block_on(read_info(&apk_path));
 
     task::block_on(read_total(&apk_path));
 
-    let filter = CliperFilter::from_args();
+    
 
     task::block_on(read_detail_info(&apk_path, &filter));
 }

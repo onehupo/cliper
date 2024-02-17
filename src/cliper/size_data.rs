@@ -11,15 +11,16 @@ pub struct SizeData {
 }
 
 impl SizeData {
-    // 原始数据转换成如果是1000以上的数据，转换成KB，如果是1000以上的数据，转换成MB
+    // 原始数据转换成如果是1000以上的数据，转换成KB，如果是1000以上的数据，转换成MB, 保留2位小数
     pub fn convert_size(&self, size: u64) -> String {
         if size > 1000 {
-            let kb = size / 1000;
-            if kb > 1000 {
-                let mb = kb / 1000;
-                return format!("{}MB", mb);
+            let kb = size as f64 / 1000.00;
+            if kb > 1000.00 {
+                let mb = kb / 1000.00;
+                return format!("{:.2}MB", mb);
             } else {
-                return format!("{}KB", kb);
+                // 保留2位小数
+                return format!("{:.2}KB", kb);
             }
         } else {
             return format!("{}B", size);

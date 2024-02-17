@@ -15,18 +15,26 @@ mod cliper;
 use cliper::apk_cliper::size_reader;
 use cliper::cliper_info::CliperInfo;
 
+// cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+// cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
 
-/**
- * 过滤器
- * 过滤路径，过滤大小，过滤后缀，过滤类型
- * cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
- * cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
- */
+/// 简介:
+/// 
+///     一个简单的包体积分析工具，可以分析apk包的大小，包含的文件，文件大小，文件类型等信息
+/// 
+/// 用法:
+///     
+///    cliper --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+/// 
 #[derive(Debug, StructOpt)]
+// #[structopt(name = "cliper", about = "the stupid content tracker"))]
 struct CliperFilter {
-    #[structopt(short, long, help = "debug")]
+    /// Activate debug mode
+    // short and long flags (-d, --debug) will be deduced from the field's name
+    #[structopt(short, long)]
     debug: bool,
-    #[structopt(long, default_value = "", help = "输入文件")]
+    /// 输入文件
+    #[structopt(long)]
     input: String,
     #[structopt(long, default_value = "", help = "过滤路径")]
     filter_path: String,
@@ -38,8 +46,13 @@ struct CliperFilter {
     filter_type: String,
     #[structopt(long, default_value = "summary", help = "过滤动作")]
     action: String,
-    #[structopt(long, help = "输出csv文件")]
+    /// 输出csv文件
+    #[structopt(short, long, help = "输出csv文件")]
     output_csv: bool,
+    #[structopt(long, default_value = "0", help = "限制输出行数")]
+    limit: u64,
+    #[structopt(skip)]
+    pub build_path: String,
 }
 // 添加一个过滤器，过滤掉不需要的文件, 满足条件的返回true
 fn cliper_filter(info: &CliperInfo, filter: &CliperFilter) -> bool {
@@ -246,7 +259,8 @@ fn main() {
     // 根目录下面的build文件
     let build_path = get_build_dir();
     // 解析过滤器
-    let filter = CliperFilter::from_args();
+    let mut filter = CliperFilter::from_args();
+    filter.build_path = build_path.clone();
     // build目录下的apk文件
     if filter.input.is_empty() {
         println_message("Error: Please input the apk file: --input ./build/app.apk");

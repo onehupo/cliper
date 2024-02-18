@@ -233,6 +233,12 @@ fn build_file(filename: &str) -> String {
 }
 
 fn main() {
+    if std::env::args().len() == 1 {
+        CliperFilter::clap().print_help().expect("Failed to print help");
+        println!(); // 打印换行符以更好地格式化输出
+        return;
+    }
+
     // 解析输入的命令
     let args: Vec<String> = std::env::args().collect();
     // 读取工程根目录

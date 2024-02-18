@@ -18,17 +18,9 @@ use cliper::cliper_info::CliperInfo;
 // cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
 // cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
 
-/// 简介:
-/// 
-///     一个简单的包体积分析工具，可以分析apk包的大小，包含的文件，文件大小，文件类型等信息
-/// 
-/// 用法:
-///     
-///    cliper --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
-/// 
+/// Common options for the command line interface
 #[derive(Debug, StructOpt)]
-// #[structopt(name = "cliper", about = "the stupid content tracker"))]
-struct CliperFilter {
+struct CommonOpts {
     /// Activate debug mode
     // short and long flags (-d, --debug) will be deduced from the field's name
     #[structopt(short, long)]
@@ -44,8 +36,6 @@ struct CliperFilter {
     filter_ext: String,
     #[structopt(long, default_value = "", help = "过滤类型")]
     filter_type: String,
-    #[structopt(long, default_value = "summary", help = "过滤动作")]
-    action: String,
     /// 输出csv文件
     #[structopt(short, long, help = "输出csv文件")]
     output_csv: bool,
@@ -54,8 +44,38 @@ struct CliperFilter {
     #[structopt(skip)]
     pub build_path: String,
 }
+
+/// 简介:
+/// 
+///     一个简单的包体积分析工具，可以分析apk包的大小，包含的文件，文件大小，文件类型等信息
+/// 
+/// 用法:
+///     
+///    cliper --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+/// 
+/// 帮助:
+/// 
+///     'cliper --help' for all commands
+/// 
+///     'cliper summary --help' for subcommands and options
+/// 
+///     'cliper detail --help' for subcommands and options
+/// 
+#[derive(Debug, StructOpt)]
+#[structopt(about = "the stupid content tracker")]
+enum Args {
+    Summary {
+        #[structopt(flatten)]
+        common: CommonOpts
+    },
+    Detail {
+        #[structopt(flatten)]
+        common: CommonOpts,
+    },
+}
+
 // 添加一个过滤器，过滤掉不需要的文件, 满足条件的返回true
-fn cliper_filter(info: &CliperInfo, filter: &CliperFilter) -> bool {
+fn cliper_filter(info: &CliperInfo, filter: &CommonOpts) -> bool {
     let path_filter = filter.filter_path.as_str();
     let size_filter = &filter.filter_size;
     let ext_filter = filter.filter_ext.as_str();
@@ -96,7 +116,7 @@ async fn read_info(filename: &str) -> ApkParsedInfo {
     }
 }
 
-async fn read_total(filename: &str, filter: &CliperFilter) {
+async fn read_total(filename: &str, filter: &CommonOpts) {
     let apkInfo = read_info(&filename).await;
     match size_reader::read_size(filename) {
         Ok(value) => {
@@ -128,7 +148,7 @@ async fn read_total(filename: &str, filter: &CliperFilter) {
     }
 }
 
-async fn read_detail_info(filename: &str, filter: &CliperFilter) {
+async fn read_detail_info(filename: &str, filter: &CommonOpts) {
     let apkInfo = read_info(&filename).await;
     match size_reader::read_detail_info(filename) {
         Ok(value) => {
@@ -245,51 +265,65 @@ fn build_file(filename: &str) -> String {
     return build_path.join(filename).to_str().unwrap().to_string();
 }
 
-fn main() {
-    if std::env::args().len() == 1 {
-        CliperFilter::clap().print_help().expect("Failed to print help");
-        println!(); // 打印换行符以更好地格式化输出
-        return;
-    }
-
-    // 解析输入的命令
-    let args: Vec<String> = std::env::args().collect();
-    // 读取工程根目录
-    let current_path = get_current_dir();
-    // 根目录下面的build文件
-    let build_path = get_build_dir();
-    // 解析过滤器
-    let mut filter = CliperFilter::from_args();
-    filter.build_path = build_path.clone();
-    // build目录下的apk文件
-    if filter.input.is_empty() {
+fn check_input_file(filename: &str) -> Result<(), String> {
+    if filename.is_empty() {
         println_message("Error: Please input the apk file: --input ./build/app.apk");
+        return Err("Input file path is empty".to_string());
+    }
+    let file = Path::new(filename);
+    if !file.exists() {
+        println_message("Error: Please input the apk file: --input ./build/app.apk");
+        return Err("Input file path not exists".to_string());
+    }
+    return Ok(());
+}
+
+fn absolute_path(input: &str) -> String {
+    let mut file_path = input.to_string();
+    if file_path.starts_with(".") {
+        file_path = format!("{}/{}", get_current_dir(), file_path);
+    }
+    return file_path;
+}
+
+fn show_debug(debug: bool, apk_path: &str) {
+    if !debug {
         return;
     }
-    // let apk_path = build_file("app.apk");
-    let mut apk_path = filter.input.clone();
-    if apk_path.starts_with(".") {
-        apk_path = format!("{}/{}", &current_path, &apk_path);
-    }
-    if filter.debug {
-        let mut system_message = String::from("");
-        system_message.push_str(format!("args: {:?}", args).as_str());
-        system_message.push_str(format!("\nCurrent Path: {}", current_path).as_str());
-        system_message.push_str(format!("\nBuild Path  : {}", build_path).as_str());
-        system_message.push_str(format!("\ninput Path  : {}", apk_path).as_str());
-        println_message(system_message.as_str());
-    }
+    let mut system_message = String::from("");
+    system_message.push_str(format!("args          : {:?}", env::args()).as_str());
+    system_message.push_str(format!("\nCmd         : {}", "summary").as_str());
+    system_message.push_str(format!("\nCurrent Path: {}", get_current_dir()).as_str());
+    system_message.push_str(format!("\nBuild Path  : {}", get_build_dir()).as_str());
+    system_message.push_str(format!("\ninput Path  : {}", apk_path).as_str());
+    println_message(system_message.as_str());
+}
 
-    match filter.action.as_str() {
-        "summary" => {
-            task::block_on(read_total(&apk_path, &filter));
+fn main() -> Result<(), String> {
+    if std::env::args().len() == 1 {
+        Args::clap().print_help().expect("Failed to print help");
+        println!(); // 打印换行符以更好地格式化输出
+        return Ok(());
+    }
+    let args_from: Args = Args::from_args();
+    // 匹配不同的命令来获取参数
+    match args_from {
+        Args::Summary { common } => {
+            let mut opts = common;
+            opts.build_path = get_build_dir();
+            check_input_file(opts.input.as_str())?;
+            let apk_path = absolute_path(&opts.input.clone());
+            show_debug(opts.debug, apk_path.as_str());
+            task::block_on(read_total(&apk_path, &opts));
         }
-        "detail" => {
-            task::block_on(read_detail_info(&apk_path, &filter));
-        }
-        _ => {
-            
+        Args::Detail { common } => {
+            let mut opts = common;
+            opts.build_path =  get_build_dir();
+            check_input_file(opts.input.as_str())?;
+            let apk_path = absolute_path(&opts.input.clone());
+            show_debug(opts.debug, apk_path.as_str());
+            task::block_on(read_detail_info(&apk_path, &opts));
         }
     }
-
+    Ok(())
 }

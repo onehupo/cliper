@@ -28,6 +28,15 @@ struct CommonOpts {
     /// 输入文件
     #[structopt(long)]
     input: String,
+    /// 输出csv文件
+    #[structopt(short, long, help = "输出csv文件")]
+    output_csv: bool,
+    #[structopt(skip)]
+    pub build_path: String,
+}
+
+#[derive(Debug, StructOpt)]
+struct DetailOpts {
     #[structopt(long, default_value = "", help = "过滤路径")]
     filter_path: String,
     #[structopt(long, default_value = "0", help = "过滤大小")]
@@ -36,13 +45,8 @@ struct CommonOpts {
     filter_ext: String,
     #[structopt(long, default_value = "", help = "过滤类型")]
     filter_type: String,
-    /// 输出csv文件
-    #[structopt(short, long, help = "输出csv文件")]
-    output_csv: bool,
     #[structopt(long, default_value = "0", help = "限制输出行数")]
     limit: usize,
-    #[structopt(skip)]
-    pub build_path: String,
 }
 
 /// 简介:
@@ -71,11 +75,13 @@ enum Args {
     Detail {
         #[structopt(flatten)]
         common: CommonOpts,
+        #[structopt(flatten)]
+        detail: DetailOpts,
     },
 }
 
 // 添加一个过滤器，过滤掉不需要的文件, 满足条件的返回true
-fn cliper_filter(info: &CliperInfo, filter: &CommonOpts) -> bool {
+fn cliper_filter(info: &CliperInfo, filter: &DetailOpts) -> bool {
     let path_filter = filter.filter_path.as_str();
     let size_filter = &filter.filter_size;
     let ext_filter = filter.filter_ext.as_str();
@@ -148,7 +154,7 @@ async fn read_total(filename: &str, filter: &CommonOpts) {
     }
 }
 
-async fn read_detail_info(filename: &str, filter: &CommonOpts) {
+async fn read_detail_info(filename: &str, filter: &CommonOpts, detail: &DetailOpts) {
     read_info(&filename).await;
     match size_reader::read_detail_info(filename) {
         Ok(value) => {
@@ -169,7 +175,7 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts) {
                 "File Folder"
             ]);
             for cliper_item in &value {
-                if !cliper_filter(cliper_item, filter) {
+                if !cliper_filter(cliper_item, detail) {
                     continue;
                 }
                 line_num += 1;
@@ -188,7 +194,7 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts) {
             println!("");
             printline();
             println!("Total: {}, Filter: {}", &value.len(), line_num);
-            let limit = filter.limit;
+            let limit = detail.limit;
             if limit <= 0 || limit >= line_num{
                 table.printstd();
             } else {
@@ -320,13 +326,13 @@ fn main() -> Result<(), String> {
             show_debug(opts.debug, apk_path.as_str());
             task::block_on(read_total(&apk_path, &opts));
         }
-        Args::Detail { common } => {
+        Args::Detail { common, detail } => {
             let mut opts = common;
             opts.build_path =  get_build_dir();
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, apk_path.as_str());
-            task::block_on(read_detail_info(&apk_path, &opts));
+            task::block_on(read_detail_info(&apk_path, &opts, &detail));
         }
     }
     Ok(())

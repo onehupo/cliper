@@ -1,7 +1,7 @@
 #[derive(Debug)]
 pub struct SizeData {
     // ... fields for fileName, version, asserts, res, code, native, others, all, etc.
-    pub fileName: String,
+    pub file_name: String,
     pub asserts: u64,
     pub res: u64,
     pub code: u64,
@@ -29,7 +29,7 @@ impl SizeData {
 
     pub fn new() -> SizeData {
         SizeData {
-            fileName: String::new(),
+            file_name: String::new(),
             asserts: 0,
             res: 0,
             code: 0,

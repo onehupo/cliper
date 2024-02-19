@@ -1,5 +1,5 @@
 pub mod size_reader {
-    use std::{fs::File, option};
+    use std::{fs::File};
     use zip::read::ZipArchive;
     use std::path::Path;
 
@@ -12,12 +12,12 @@ pub mod size_reader {
 
         let mut file_info = SizeData::new();
 
-        file_info.fileName = String::from(filename);
+        file_info.file_name = String::from(filename);
 
         for i in 0..archive.len() {
             let file = archive.by_index(i)?;
             let name = file.name().to_string();
-            let size = file.size();
+            let _size = file.size();
             let download = file.compressed_size();
 
             if name.starts_with("assets/") || name.starts_with("base/assets/") {
@@ -88,7 +88,7 @@ pub mod size_reader {
      * 读取文件类型
      */
     fn read_type(name: &str) -> String {
-        let mut file_type = String::new();
+        let file_type;
         if name.starts_with("assets/") || name.starts_with("base/assets/") {
             file_type = "Asserts".to_string();
         } else if name.starts_with("res/") || name.starts_with("base/res/") {

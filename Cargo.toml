@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 zip = "0.5" # 确保使用最新版本号
-prettytable-rs = "0.8.0" # 表格的打印
+prettytable-rs = "^0.10" # 表格的打印
 xml-rs = "0.8.3" # xml解析
 axmldecoder = "*"
 serde = { version = "1.0.155", features = ["derive"] }

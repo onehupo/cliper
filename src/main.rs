@@ -3,7 +3,7 @@ use std::{env, fs};
 
 use async_std::task;
 use csv::Writer;
-use prettytable::{cell, format, row, Cell, Row, Table};
+use prettytable::{row, Cell, Row, Table};
 use structopt::StructOpt;
 use std::path::Path;
 
@@ -40,7 +40,7 @@ struct CommonOpts {
     #[structopt(short, long, help = "输出csv文件")]
     output_csv: bool,
     #[structopt(long, default_value = "0", help = "限制输出行数")]
-    limit: u64,
+    limit: usize,
     #[structopt(skip)]
     pub build_path: String,
 }
@@ -117,7 +117,7 @@ async fn read_info(filename: &str) -> ApkParsedInfo {
 }
 
 async fn read_total(filename: &str, filter: &CommonOpts) {
-    let apkInfo = read_info(&filename).await;
+    read_info(&filename).await;
     match size_reader::read_size(filename) {
         Ok(value) => {
             let mut table = Table::new();
@@ -149,9 +149,13 @@ async fn read_total(filename: &str, filter: &CommonOpts) {
 }
 
 async fn read_detail_info(filename: &str, filter: &CommonOpts) {
-    let apkInfo = read_info(&filename).await;
+    read_info(&filename).await;
     match size_reader::read_detail_info(filename) {
         Ok(value) => {
+            // 对value进行排序，以donwload大小进行排序
+            let mut value = value;
+            value.sort_by(|a, b| b.download.cmp(&a.download));
+
             let mut table = Table::new();
             let mut line_num = 0;
             table.add_row(row![
@@ -170,7 +174,8 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts) {
                 }
                 line_num += 1;
                 table.add_row(Row::new(vec![
-                    Cell::new(&cliper_item.id.to_string()),
+                    // Cell::new(&cliper_item.id.to_string()),
+                    Cell::new(&line_num.to_string()),
                     Cell::new(&cliper_item.file_path),
                     Cell::new(&cliper_item.name),
                     Cell::new(&cliper_item.size.to_string()),
@@ -183,12 +188,12 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts) {
             println!("");
             printline();
             println!("Total: {}, Filter: {}", &value.len(), line_num);
-            if filter.debug {
+            let limit = filter.limit;
+            if limit <= 0 || limit >= line_num{
                 table.printstd();
             } else {
-                let limit = 10;
                 let mut limited_table = Table::new();
-                for row in table.row_iter().take(limit) {
+                for row in table.row_iter().take(limit+1) {
                     limited_table.add_row(Row::new(
                         row.iter()
                             .map(|cell| Cell::new(&cell.get_content()))
@@ -196,7 +201,6 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts) {
                     ));
                 }
                 limited_table.printstd();
-                println!("> For more details, please use --debug option or -d option")
             }
             printline();
             if filter.output_csv {

@@ -40,7 +40,37 @@ use structopt::StructOpt;
     /// 
     /// 用法:
     ///     
-    ///    cliper --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+    ///    ./cliper detail --input ./build/app.apk --filter-ext .png --filter-size 10000 --filter-path assets
+    /// 
+    ///    ./cliper detail --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path res/drawable
+    /// 
+    ///    ./cliper same --input ./build/app.apk
+    /// 
+    ///    ./cliper summary --input ./build/app.apk
+    /// 
+    /// 选项:
+    ///     
+    ///     -h, --help       显示帮助信息
+    /// 
+    ///     -V, --version    显示版本信息
+    /// 
+    ///     --input          输入文件 : --input ./build/app.apk
+    /// 
+    ///     --output-csv     输出csv文件: --output-csv true
+    /// 
+    ///     --debug          debug mode: --debug true
+    /// 
+    ///     --filter-ext     过滤后缀 : --filter-ext .png
+    /// 
+    ///     --filter-path    过滤路径 : --filter-path assets
+    /// 
+    ///     --filter-size    过滤大小 : --filter-size 10000
+    /// 
+    ///     --filter-type    过滤类型 : --filter-type Code, Res, Native, Assets, Other
+    /// 
+    ///     --limit          限制输出行数 : --limit 10
+    /// 
+    ///     --build-path     输出文件
     /// 
     /// 帮助:
     /// 

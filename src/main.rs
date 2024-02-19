@@ -4,6 +4,7 @@ use std::{env, fs};
 use async_std::task;
 use csv::Writer;
 use prettytable::{row, Cell, Row, Table};
+use structopt::clap::SubCommand;
 use std::collections::HashMap;
 use std::path::Path;
 use structopt::StructOpt;
@@ -346,13 +347,13 @@ fn absolute_path(input: &str) -> String {
     return file_path;
 }
 
-fn show_debug(debug: bool, apk_path: &str) {
+fn show_debug(debug: bool, sub_command: &str, apk_path: &str) {
     if !debug {
         return;
     }
     let mut system_message = String::from("");
     system_message.push_str(format!("args          : {:?}", env::args()).as_str());
-    system_message.push_str(format!("\nCmd         : {}", "summary").as_str());
+    system_message.push_str(format!("\nCmd         : {}", sub_command).as_str());
     system_message.push_str(format!("\nCurrent Path: {}", get_current_dir()).as_str());
     system_message.push_str(format!("\nBuild Path  : {}", get_build_dir()).as_str());
     system_message.push_str(format!("\ninput Path  : {}", apk_path).as_str());
@@ -373,7 +374,7 @@ fn main() -> Result<(), String> {
             opts.build_path = get_build_dir();
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
-            show_debug(opts.debug, apk_path.as_str());
+            show_debug(opts.debug, "Summary", apk_path.as_str());
             task::block_on(read_total(&apk_path, &opts));
         }
         Args::Detail { common, detail } => {
@@ -381,7 +382,7 @@ fn main() -> Result<(), String> {
             opts.build_path = get_build_dir();
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
-            show_debug(opts.debug, apk_path.as_str());
+            show_debug(opts.debug, "Detail", apk_path.as_str());
             task::block_on(read_detail_info(&apk_path, &opts, &detail));
         }
         Args::Same { common } => {
@@ -389,7 +390,7 @@ fn main() -> Result<(), String> {
             opts.build_path = get_build_dir();
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
-            show_debug(opts.debug, apk_path.as_str());
+            show_debug(opts.debug, "Same", apk_path.as_str());
             task::block_on(read_same_info(&apk_path, &opts));
         }
     }

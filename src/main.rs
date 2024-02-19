@@ -7,78 +7,14 @@ use prettytable::{row, Cell, Row, Table};
 use structopt::StructOpt;
 use std::path::Path;
 
-
 mod app;
 use app::manifest_parser::parser;
 use app::apk_info::ApkParsedInfo;
 mod cliper;
 use cliper::apk_cliper::size_reader;
 use cliper::cliper_info::CliperInfo;
+use cliper::cmds::{CommonOpts, DetailOpts, Args};
 
-// cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
-// cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
-
-/// Common options for the command line interface
-#[derive(Debug, StructOpt)]
-struct CommonOpts {
-    /// Activate debug mode
-    // short and long flags (-d, --debug) will be deduced from the field's name
-    #[structopt(short, long)]
-    debug: bool,
-    /// 输入文件
-    #[structopt(long)]
-    input: String,
-    /// 输出csv文件
-    #[structopt(short, long, help = "输出csv文件")]
-    output_csv: bool,
-    #[structopt(skip)]
-    pub build_path: String,
-}
-
-#[derive(Debug, StructOpt)]
-struct DetailOpts {
-    #[structopt(long, default_value = "", help = "过滤路径")]
-    filter_path: String,
-    #[structopt(long, default_value = "0", help = "过滤大小")]
-    filter_size: u64,
-    #[structopt(long, default_value = "", help = "过滤后缀")]
-    filter_ext: String,
-    #[structopt(long, default_value = "", help = "过滤类型")]
-    filter_type: String,
-    #[structopt(long, default_value = "0", help = "限制输出行数")]
-    limit: usize,
-}
-
-/// 简介:
-/// 
-///     一个简单的包体积分析工具，可以分析apk包的大小，包含的文件，文件大小，文件类型等信息
-/// 
-/// 用法:
-///     
-///    cliper --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
-/// 
-/// 帮助:
-/// 
-///     'cliper --help' for all commands
-/// 
-///     'cliper summary --help' for subcommands and options
-/// 
-///     'cliper detail --help' for subcommands and options
-/// 
-#[derive(Debug, StructOpt)]
-#[structopt(about = "the stupid content tracker")]
-enum Args {
-    Summary {
-        #[structopt(flatten)]
-        common: CommonOpts
-    },
-    Detail {
-        #[structopt(flatten)]
-        common: CommonOpts,
-        #[structopt(flatten)]
-        detail: DetailOpts,
-    },
-}
 
 // 添加一个过滤器，过滤掉不需要的文件, 满足条件的返回true
 fn cliper_filter(info: &CliperInfo, filter: &DetailOpts) -> bool {

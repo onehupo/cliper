@@ -4,17 +4,15 @@ use std::{env, fs};
 use async_std::task;
 use csv::Writer;
 use prettytable::{row, Cell, Row, Table};
-use structopt::StructOpt;
+use std::collections::HashMap;
 use std::path::Path;
+use structopt::StructOpt;
 
 mod app;
-use app::manifest_parser::parser;
-use app::apk_info::ApkParsedInfo;
+use app::{apk_info::ApkParsedInfo, manifest_parser::parser};
 mod cliper;
-use cliper::apk_cliper::size_reader;
-use cliper::cliper_info::CliperInfo;
-use cliper::cmds::{CommonOpts, DetailOpts, Args};
-
+use cliper::cmds::{Args, CommonOpts, DetailOpts};
+use cliper::{apk_cliper::size_reader, cliper_info::CliperInfo};
 
 // 添加一个过滤器，过滤掉不需要的文件, 满足条件的返回true
 fn cliper_filter(info: &CliperInfo, filter: &DetailOpts) -> bool {
@@ -43,8 +41,9 @@ async fn read_info(filename: &str) -> ApkParsedInfo {
     match parser::parse(&filename).await {
         Some(value) => {
             let message = format!(
-                "APK Information:\nFile: {}\nPackage Name: {}\nVersion Code: {}\nVersion Name: {}", 
-                filename, value.package_name, value.version_code, value.version_name);
+                "APK Information:\nFile: {}\nPackage Name: {}\nVersion Code: {}\nVersion Name: {}",
+                filename, value.package_name, value.version_code, value.version_name
+            );
             println_message(message.as_str());
             return value;
         }
@@ -76,7 +75,7 @@ async fn read_total(filename: &str, filter: &CommonOpts) {
             printline();
             table.printstd();
             printline();
-            if filter.output_csv { 
+            if filter.output_csv {
                 let output = build_file("csv/table_total.csv");
                 create_csv(&table, &output);
             }
@@ -131,11 +130,11 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts, detail: &DetailOp
             printline();
             println!("Total: {}, Filter: {}", &value.len(), line_num);
             let limit = detail.limit;
-            if limit <= 0 || limit >= line_num{
+            if limit <= 0 || limit >= line_num {
                 table.printstd();
             } else {
                 let mut limited_table = Table::new();
-                for row in table.row_iter().take(limit+1) {
+                for row in table.row_iter().take(limit + 1) {
                     limited_table.add_row(Row::new(
                         row.iter()
                             .map(|cell| Cell::new(&cell.get_content()))
@@ -149,6 +148,121 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts, detail: &DetailOp
                 let output = build_file("csv/table_detail.csv");
                 create_csv(&table, &output);
             }
+        }
+        Err(e) => {
+            println!("");
+            printline();
+            println!("Failed to read APK information: {}", e);
+            printline();
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct Md5SizeInfo {
+    // | id | file Path | Name  | Size | Download | Type  | File Type | File Folder |
+    pub id : u64,
+    pub file_path: String,
+    pub name: String,
+    pub size: u64,
+    pub download: u64,
+    pub file_type: String,
+    pub file_ext: String,
+    pub file_folder: String,
+    pub md5: String,
+}
+
+pub struct Md5Group {
+    pub md5: String,
+    pub file_names: String,
+    pub size: u64,
+}
+
+fn group_by_md5(data: Vec<CliperInfo>) -> HashMap<String, Vec<Md5SizeInfo>> {
+    let mut md5_map: HashMap<String, Vec<Md5SizeInfo>> = HashMap::new();
+    // 根据 md5 值获取对应的向量，如果不存在则插入一个新的空向量
+    for cliper_info in data {
+        let file_names = md5_map.entry(cliper_info.md5.clone()).or_insert_with(Vec::new);   
+        let md5_size_info = Md5SizeInfo {
+            id: cliper_info.id,
+            file_path: cliper_info.file_path,
+            name: cliper_info.name,
+            size: cliper_info.size,
+            download: cliper_info.download,
+            file_type: cliper_info.file_type,
+            file_ext: cliper_info.file_ext,
+            file_folder: cliper_info.file_folder,
+            md5: cliper_info.md5.clone(),
+        };
+        // 将文件名添加到向量中
+        file_names.push(md5_size_info);
+    }
+
+    md5_map
+}
+
+async fn read_same_info(filename: &str, filter: &CommonOpts) {
+    read_info(&filename).await;
+    match size_reader::read_detail_info_with_md5(filename) {
+        Ok(value) => {
+            // 对value进行排序，以donwload大小进行排序
+            let md5_groups = group_by_md5(value);
+
+            let md5_groups_convert = md5_groups
+                .into_iter()
+                // 过滤 md5 值只有一个文件的情况
+                .filter_map(|(md5, file_names)| {
+                    if file_names.len() == 1 {
+                        return None;
+                    }
+                    Some((md5, file_names))
+                })
+                .map(|(md5, file_names)| {
+                    let size = file_names.iter().map(|file_name| file_name.size).sum();
+                    let file_names = file_names
+                        .iter()
+                        .map(|file_name| file_name.file_path.clone())
+                        .collect::<Vec<String>>()
+                        .join("\n");
+                    Md5Group {
+                        md5,
+                        file_names,
+                        size,
+                    }
+                })
+                .collect::<Vec<Md5Group>>();
+
+            // 按照size大小排序
+            let mut md5_groups_convert = md5_groups_convert;
+            md5_groups_convert.sort_by(|a, b| b.size.cmp(&a.size));
+
+            let mut md5_table = Table::new();
+            let mut md5_line_num = 0;
+            md5_table.add_row(row!["id", "md5", "files", "size"]);
+
+
+            // 打印出按 MD5 分组的文件名
+            for item_info in md5_groups_convert {
+                md5_line_num += 1;
+                md5_table.add_row(Row::new(vec![
+                    // Cell::new(&cliper_item.id.to_string()),
+                    Cell::new(&md5_line_num.to_string()),
+                    Cell::new(&item_info.md5),
+                    Cell::new(&item_info.file_names),
+                    Cell::new(&item_info.size.to_string()),
+                ]));
+            }
+            // 按文件大小排序
+            println!("");
+            printline();
+            println!("Total: {}, Filter: {}", &md5_table.len()-1, md5_line_num);
+            md5_table.printstd();
+            printline();
+            if filter.output_csv {
+                let output = build_file("csv/table_same.csv");
+                create_csv(&md5_table, &output);
+            }
+            
         }
         Err(e) => {
             println!("");
@@ -264,11 +378,19 @@ fn main() -> Result<(), String> {
         }
         Args::Detail { common, detail } => {
             let mut opts = common;
-            opts.build_path =  get_build_dir();
+            opts.build_path = get_build_dir();
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, apk_path.as_str());
             task::block_on(read_detail_info(&apk_path, &opts, &detail));
+        }
+        Args::Same { common } => {
+            let mut opts = common;
+            opts.build_path = get_build_dir();
+            check_input_file(opts.input.as_str())?;
+            let apk_path = absolute_path(&opts.input.clone());
+            show_debug(opts.debug, apk_path.as_str());
+            task::block_on(read_same_info(&apk_path, &opts));
         }
     }
     Ok(())

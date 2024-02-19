@@ -1,7 +1,9 @@
 pub mod size_reader {
-    use std::{fs::File};
+    use std::fs::File;
+    use std::io::Read;
     use zip::read::ZipArchive;
     use std::path::Path;
+    use md5;
 
     use crate::cliper::size_data::SizeData;
     use crate::cliper::cliper_info::CliperInfo;
@@ -51,14 +53,33 @@ pub mod size_reader {
     pub fn read_detail_info(
         filepath: &str,
     ) -> zip::result::ZipResult<Vec<CliperInfo>> {
-        let file = File::open(filepath)?;
+        return _read_detail_info(filepath, false);
+    }
+
+    /**
+     * 读取文件详细信息
+     * 路径，名称，压缩大小，原始大小，分类，文件类型，文件夹的路径
+     */
+    pub fn read_detail_info_with_md5(
+        filepath: &str,
+    ) -> zip::result::ZipResult<Vec<CliperInfo>> {
+        return _read_detail_info(filepath, true);
+    }
+
+    fn _read_detail_info(
+        filepath: &str, need_md5: bool
+    ) -> zip::result::ZipResult<Vec<CliperInfo>> {
+        let zip_file = File::open(filepath)?;
 
         // 读取apk文件,zip格式
-        let mut archive = ZipArchive::new(file)?;
+        let mut archive = ZipArchive::new(zip_file)?;
         // 存放文件信息 
         let mut cliper_info_list: Vec<CliperInfo> = Vec::new();
 
         for i in 0..archive.len() {
+            // 在单行打印进度
+            print!("\r进度: {}/{}", i+1, archive.len());
+    
             let file = archive.by_index(i)?;
             let name = file.name().to_string();
             let size = file.size();
@@ -68,6 +89,23 @@ pub mod size_reader {
             let path = Path::new(&name);
             let file_folder = path.parent().unwrap().to_str().unwrap().to_string();
             let file_name = read_file_name(&name);
+            
+            let mut md5_result: String = String::new();
+            if need_md5 {
+                // 过滤一些空的文件
+                if _filter_md5_file(&file_name, download) {
+                    continue;
+                    
+                }
+                let mut buffer = Vec::new();
+                let mut read_file = file;
+                read_file.read_to_end(&mut buffer).unwrap();
+
+                let digest = md5::compute(&buffer);
+
+                md5_result = format!("{:x}", digest)
+                
+            }
             let cliper_info = create_cliper_item(
                 i as u64,
                 name,
@@ -77,11 +115,40 @@ pub mod size_reader {
                 file_type,
                 file_ext,
                 file_folder,
+                md5_result,
             );
+            
             cliper_info_list.push(cliper_info);
         }
 
         Ok(cliper_info_list)
+    }
+
+
+
+    fn _filter_md5_file(file_name: &str, download: u64) -> bool {
+        if file_name.ends_with(".webp") && download == 0 {
+            return true;
+        }
+        if file_name.ends_with(".xml") && download == 47 {
+            return true;
+        }
+        if file_name.ends_with(".json") && download == 2 {
+            return true;
+        }
+        if file_name.ends_with(".mp3") && download == 0 {
+            return true;
+        }
+        if file_name.ends_with(".png") && download == 67 {
+            return true;
+        }
+        if file_name.ends_with(".9.png") && download == 77 {
+            return true;
+        }
+        if file_name.ends_with(".jpg") && download == 0 {
+            return true;
+        }
+        return false;
     }
 
     /**
@@ -149,6 +216,7 @@ pub mod size_reader {
         file_type: String,
         file_ext: String,
         file_folder: String,
+        md5: String,
     ) -> CliperInfo {
         let mut cliper_info = CliperInfo::new();
         cliper_info.id = id;
@@ -159,6 +227,7 @@ pub mod size_reader {
         cliper_info.file_type = file_type;
         cliper_info.file_ext = file_ext;
         cliper_info.file_folder = file_folder;
+        cliper_info.md5 = md5;
         return cliper_info;
     }
 }

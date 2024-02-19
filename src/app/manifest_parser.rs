@@ -2,6 +2,7 @@ pub mod parser {
     use xml::reader::XmlEvent;
     use xml::EventReader;
     use std::io::Read;
+    use base64::{engine::general_purpose::STANDARD, Engine as _};
 
     use crate::app::android_xml::axml;
     use crate::app::apk_info::ApkParsedInfo;
@@ -17,7 +18,7 @@ pub mod parser {
             if in_file.name() == "res/drawable-xxxhdpi-v4/ic_launcher.png" {
                 let mut f_content: Vec<u8> = Vec::new();
                 in_file.read_to_end(&mut f_content).unwrap();
-                icon = base64::encode(&f_content);
+                icon =  STANDARD.encode(&f_content);
                 break;
             }
         }

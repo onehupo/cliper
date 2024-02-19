@@ -46,9 +46,7 @@ use structopt::StructOpt;
     /// 
     ///     'cliper --help' for all commands
     /// 
-    ///     'cliper summary --help' for subcommands and options
-    /// 
-    ///     'cliper detail --help' for subcommands and options
+    ///     'cliper subcommands --help' for subcommands and options
     /// 
     #[derive(Debug, StructOpt)]
     #[structopt(about = "the stupid content tracker")]
@@ -63,4 +61,8 @@ use structopt::StructOpt;
             #[structopt(flatten)]
             detail: DetailOpts,
         },
+        Same {
+            #[structopt(flatten)]
+            common: CommonOpts
+        }
     }

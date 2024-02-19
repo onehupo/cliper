@@ -8,7 +8,8 @@ pub struct CliperInfo {
     pub download: u64,
     pub file_type: String,
     pub file_ext: String,
-    pub file_folder: String
+    pub file_folder: String,
+    pub md5: String,
 }
 
 impl CliperInfo {
@@ -21,7 +22,8 @@ impl CliperInfo {
             download: 0,
             file_type: String::new(),
             file_ext: String::new(),
-            file_folder: String::new()
+            file_folder: String::new(),
+            md5: String::new(),
         }
     }
 }

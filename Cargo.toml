@@ -6,14 +6,15 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-zip = "0.5" # 确保使用最新版本号
+zip = "0.6.6" # 确保使用最新版本号
 prettytable-rs = "^0.10" # 表格的打印
 xml-rs = "0.8.3" # xml解析
 axmldecoder = "*"
-serde = { version = "1.0.155", features = ["derive"] }
+serde = { version = "1.0.196", features = ["derive"] }
 serde_json = "1.0"
-base64 = "0.20.0"
-funty = "3.0.0-rc2"
+base64 = "0.21.7"
+funty = "2.0.0"
 async-std = "1.10.0"
 structopt = "0.3"
 csv = "1.1"
+md5 = "0.7.0"

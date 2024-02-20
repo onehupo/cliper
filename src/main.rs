@@ -4,7 +4,6 @@ use std::{env, fs};
 use async_std::task;
 use csv::Writer;
 use prettytable::{row, Cell, Row, Table};
-use structopt::clap::SubCommand;
 use std::collections::HashMap;
 use std::path::Path;
 use structopt::StructOpt;
@@ -77,7 +76,7 @@ async fn read_total(filename: &str, filter: &CommonOpts) {
             table.printstd();
             printline();
             if filter.output_csv {
-                let output = build_file("csv/table_total.csv");
+                let output = output_path(&filter.build_path, "table_total.csv");
                 create_csv(&table, &output);
             }
         }
@@ -146,7 +145,7 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts, detail: &DetailOp
             }
             printline();
             if filter.output_csv {
-                let output = build_file("csv/table_detail.csv");
+                let output = output_path(&filter.build_path, "table_detail.csv");
                 create_csv(&table, &output);
             }
         }
@@ -260,7 +259,7 @@ async fn read_same_info(filename: &str, filter: &CommonOpts) {
             md5_table.printstd();
             printline();
             if filter.output_csv {
-                let output = build_file("csv/table_same.csv");
+                let output = output_path(&filter.build_path, "table_same.csv");
                 create_csv(&md5_table, &output);
             }
             
@@ -272,6 +271,18 @@ async fn read_same_info(filename: &str, filter: &CommonOpts) {
             printline();
         }
     }
+}
+
+fn output_path(build_path: &str, file_name: &str) -> String {
+    let output;
+    if build_path.is_empty() {
+        output = build_file(file_name);
+    } else if build_path.ends_with(".csv") {
+        output = build_path.to_string();
+    } else { // 以 / 结尾 或 不以 / 结尾
+        output = format!("{}/{}", build_path, file_name);
+    }
+    return output;
 }
 
 fn printline() {
@@ -371,7 +382,11 @@ fn main() -> Result<(), String> {
     match args_from {
         Args::Summary { common } => {
             let mut opts = common;
-            opts.build_path = get_build_dir();
+            if opts.build_path.is_empty() {
+                opts.build_path = get_build_dir();
+            } else {
+                opts.build_path = absolute_path(&opts.build_path.clone())
+            }
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, "Summary", apk_path.as_str());
@@ -379,7 +394,11 @@ fn main() -> Result<(), String> {
         }
         Args::Detail { common, detail } => {
             let mut opts = common;
-            opts.build_path = get_build_dir();
+            if opts.build_path.is_empty() {
+                opts.build_path = get_build_dir();
+            } else {
+                opts.build_path = absolute_path(&opts.build_path.clone())
+            }
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, "Detail", apk_path.as_str());
@@ -387,7 +406,11 @@ fn main() -> Result<(), String> {
         }
         Args::Same { common } => {
             let mut opts = common;
-            opts.build_path = get_build_dir();
+            if opts.build_path.is_empty() {
+                opts.build_path = get_build_dir();
+            } else {
+                opts.build_path = absolute_path(&opts.build_path.clone())
+            }
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, "Same", apk_path.as_str());

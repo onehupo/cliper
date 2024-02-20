@@ -19,96 +19,39 @@ fi
 
 set -u
 
-# If RUSTUP_UPDATE_ROOT is unset or empty, default it.
-RUSTUP_UPDATE_ROOT="${RUSTUP_UPDATE_ROOT:-https://static.rust-lang.org/rustup}"
-
 # NOTICE: If you change anything here, please make the same changes in setup_mode.rs
 usage() {
     cat <<EOF
-rustup-init 1.26.0 (577bf51ae 2023-04-05)
-The installer for rustup
+cliper 0.1.0
+简介:
+
+一个简单的包体积分析工具，可以分析apk包的大小，包含的文件，文件大小，文件类型等信息
+
+用法:
+
+cliper --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+
+帮助:
+
+'cliper --help' for all commands
+
+'cliper summary --help' for subcommands and options
+
+'cliper detail --help' for subcommands and options
 
 USAGE:
-    rustup-init [OPTIONS]
+    cliper <SUBCOMMAND>
 
-OPTIONS:
-    -v, --verbose
-            Enable verbose output
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
 
-    -q, --quiet
-            Disable progress output
-
-    -y
-            Disable confirmation prompt.
-
-        --default-host <default-host>
-            Choose a default host triple
-
-        --default-toolchain <default-toolchain>
-            Choose a default toolchain to install. Use 'none' to not install any toolchains at all
-
-        --profile <profile>
-            [default: default] [possible values: minimal, default, complete]
-
-    -c, --component <components>...
-            Component name to also install
-
-    -t, --target <targets>...
-            Target name to also install
-
-        --no-update-default-toolchain
-            Don't update any existing default toolchain after install
-
-        --no-modify-path
-            Don't configure the PATH environment variable
-
-    -h, --help
-            Print help information
-
-    -V, --version
-            Print version information
+SUBCOMMANDS:
+    detail     Common options for the command line interface
+    help       Prints this message or the help of the given subcommand(s)
+    summary    Common options for the command line interface
 EOF
 }
-
-# downloader --check：检查是否存在一个可用的下载器（如 curl 或 wget）。
-
-# need_cmd：这是一个函数，用于检查系统中是否存在指定的命令。如果不存在，脚本将退出。
-
-# get_architecture || return 1：获取当前系统的架构。如果无法获取，函数将返回 1 并退出。
-
-# local _arch="$RETVAL"：将获取到的架构值存储在 _arch 变量中。
-
-# assert_nz "$_arch" "arch"：检查 _arch 是否为空。如果为空，脚本将退出。
-
-# case "$_arch" in ... esac：检查 _arch 是否包含 "windows"，如果是，将 _ext 设置为 ".exe"。
-
-# local _url="${RUSTUP_UPDATE_ROOT}/dist/${_arch}/rustup-init${_ext}"：构造下载 Rust 安装程序的 URL。
-
-# if ! _dir="$(ensure mktemp -d)"; then ... fi：创建一个临时目录来存储下载的文件。如果创建失败，脚本将退出。
-
-# local _file="${_dir}/rustup-init${_ext}"：构造下载文件的完整路径。
-
-# if [ -t 2 ]; then ... fi：检查是否在终端中运行脚本。如果是，根据终端类型决定是否启用 ANSI 转义序列。
-
-# for arg in "$@"; do ... done：解析命令行参数。如果用户指定了 -y 参数，将 need_tty 设置为 "no"。
-
-# if $_ansi_escapes_are_valid; then ... else ... fi：根据是否启用 ANSI 转义序列，以不同的方式打印信息。
-
-# ensure mkdir -p "$_dir"：确保临时目录存在。
-
-# ensure downloader "$_url" "$_file" "$_arch"：下载 Rust 安装程序。
-
-# ensure chmod u+x "$_file"：确保下载的文件可执行。
-
-# if [ ! -x "$_file" ]; then ... fi：如果下载的文件不可执行，打印错误信息并退出。
-
-# if [ "$need_tty" = "yes" ] && [ ! -t 0 ]; then ... else ... fi：如果需要在终端中运行安装程序，但脚本没有在终端中运行，将 /dev/tty 连接到安装程序的 stdin。否则，直接运行安装程序。
-
-# local _retval=$?：获取上一条命令的返回值。
-
-# ignore rm "$_file" 和 ignore rmdir "$_dir"：删除下载的文件和临时目录。
-
-# return "$_retval"：返回安装程序的返回值。
 
 main() {
     downloader --check
@@ -130,7 +73,8 @@ main() {
             ;;
     esac
 
-    local _url="${RUSTUP_UPDATE_ROOT}/dist/${_arch}/rustup-init${_ext}"
+    # The URL to download
+    local _url=""
 
     local _dir
     if ! _dir="$(ensure mktemp -d)"; then
@@ -138,7 +82,7 @@ main() {
         # propagate exit status.
         exit 1
     fi
-    local _file="${_dir}/rustup-init${_ext}"
+    local _file="${_dir}/cliper"
 
     local _ansi_escapes_are_valid=false
     if [ -t 2 ]; then
@@ -194,10 +138,59 @@ main() {
     ensure mkdir -p "$_dir"
     ensure downloader "$_url" "$_file" "$_arch"
     ensure chmod u+x "$_file"
-    if [ ! -x "$_file" ]; then
-        printf '%s\n' "Cannot execute $_file (likely because of mounting /tmp as noexec)." 1>&2
+
+    local _tools_dir="${HOME}/.toolx/bin/"
+    # if folder not exist, create it
+    if [ ! -d "$_tools_dir" ]; then
+        mkdir -p "$_tools_dir"
+    fi
+
+    local _target_file="${_tools_dir}/cliper"
+    # copy rust output file to ~/.toolx/bin/cliper
+    cp "$_rust_output_file" "$_tools_dir"
+
+    if [ ! -x "$_target_file" ]; then
+        printf '%s\n' "Cannot execute $_target_file (likely because of mounting /tmp as noexec)." 1>&2
         printf '%s\n' "Please copy the file to a location where you can execute binaries and run ./rustup-init${_ext}." 1>&2
         exit 1
+    fi
+
+    # 需要把目录 _tools_dir 添加到系统的path中，这样就可以直接使用cliper命令了
+    if [ -f "$_target_file" ]; then
+        local _profile
+        # 检查文件是否存在 ~/.bash_profile ~/.zprofile ~/.profile ~/.bashrc ~/.zshrc
+        if [ -f "${HOME}/.bash_profile" ]; then
+            _profile="${HOME}/.bash_profile"
+        elif [ -f "${HOME}/.zprofile" ]; then
+            _profile="${HOME}/.zprofile"
+        elif [ -f "${HOME}/.profile" ]; then
+            _profile="${HOME}/.profile"
+        elif [ -f "${HOME}/.bashrc" ]; then
+            _profile="${HOME}/.bashrc"
+        elif [ -f "${HOME}/.zshrc" ]; then
+            _profile="${HOME}/.zshrc"
+        fi
+
+        if [ -f "$_profile" ]; then
+            if ! grep -q "$_tools_dir" "$_profile"; then
+                printf '%s\n' "export PATH=\"\${PATH}:$_tools_dir\"" >> "$_profile"
+                printf '%s\n' "export PATH=\"\${PATH}:$_tools_dir\"" 1>&2
+                printf '%s\n' "The cliper command is installed, but not available in your current shell session." 1>&2
+                printf '%s\n' "To start using cliper, either start a new shell, or run the following in the existing shell:" 1>&2
+                printf '%s\n' "    source $_profile" 1>&2
+                printf '%s\n' "Then run the cliper command." 1>&2
+                printf '%s\n' "" 1>&2
+            else
+                printf '%s\n' "The cliper command is installed, and available in your current shell session." 1>&2
+                printf '%s\n' "Run the cliper command." 1>&2
+                printf '%s\n' "" 1>&2
+            fi
+        else
+            printf '%s\n' "No profile file found. Tried $_profile" 1>&2
+            printf '%s\n' "The cliper command is installed, but not available in your current shell session." 1>&2
+            printf '%s\n' "To start using cliper, either start a new shell, or add $_output_file to your PATH." 1>&2
+            printf '%s\n' "" 1>&2
+        fi
     fi
 
     if [ "$need_tty" = "yes" ] && [ ! -t 0 ]; then
@@ -209,9 +202,9 @@ main() {
             err "Unable to run interactively. Run with -y to accept defaults, --help for additional options"
         fi
 
-        ignore "$_file" "$@" < /dev/tty
+        ignore "$_target_file" "$@" < /dev/tty
     else
-        ignore "$_file" "$@"
+        ignore "$_target_file" "$@"
     fi
 
     local _retval=$?

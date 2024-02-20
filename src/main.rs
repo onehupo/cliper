@@ -7,6 +7,7 @@ use prettytable::{row, Cell, Row, Table};
 use std::collections::HashMap;
 use std::path::Path;
 use structopt::StructOpt;
+use regex::Regex;
 
 mod app;
 use app::{apk_info::ApkParsedInfo, manifest_parser::parser};
@@ -30,8 +31,12 @@ fn cliper_filter(info: &CliperInfo, filter: &DetailOpts) -> bool {
     let filter_ext_enable = !ext_filter.is_empty() && !info.file_path.ends_with(ext_filter);
     // 过滤类型 类型不为空并且不是过滤类型，为true，不满足条件
     let filter_type_enable = !type_filter.is_empty() && info.file_type != type_filter;
+    // 过滤正则匹配 正则不为空并且不匹配，为true，不满足条件
+    // file_path filter_regex 做正则匹配
+    let relex = Regex::new(filter.filter_regex.as_str()).unwrap();
+    let filter_regex_enable = !filter.filter_regex.is_empty() && !relex.is_match(&info.file_path);
     // 如果有一个条件满足，就返回true
-    if filter_path_enable || filter_size_enable || filter_ext_enable || filter_type_enable {
+    if filter_path_enable || filter_size_enable || filter_ext_enable || filter_type_enable || filter_regex_enable {
         result = false;
     }
     return result;
@@ -62,7 +67,7 @@ async fn read_total(filename: &str, filter: &CommonOpts) {
     match size_reader::read_size(filename) {
         Ok(value) => {
             let mut table = Table::new();
-            table.add_row(row!["Asserts", "Res", "Code", "Native", "Others", "All"]);
+            table.add_row(row!["Assets", "Res", "Code", "Native", "Others", "All"]);
             table.add_row(Row::new(vec![
                 Cell::new(&value.convert_size(value.asserts)),
                 Cell::new(&value.convert_size(value.res)),

@@ -31,6 +31,8 @@ pub struct DetailOpts {
     pub filter_ext: String,
     #[structopt(long, default_value = "", help = "过滤类型 : --filter-type Code, Res, Native, Assets, Other")]
     pub filter_type: String,
+    #[structopt(long, default_value = "", help = "过滤正则匹配 : --filter-regex \"^.*\\.png$\"")]
+    pub filter_regex: String,
     #[structopt(long, default_value = "0", help = "限制输出行数 : --limit 10")]
     pub limit: usize,
 }

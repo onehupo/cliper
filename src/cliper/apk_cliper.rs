@@ -157,7 +157,7 @@ pub mod size_reader {
     fn read_type(name: &str) -> String {
         let file_type;
         if name.starts_with("assets/") || name.starts_with("base/assets/") {
-            file_type = "Asserts".to_string();
+            file_type = "Assets".to_string();
         } else if name.starts_with("res/") || name.starts_with("base/res/") {
             file_type = "Res".to_string();
         } else if name.starts_with("resources.arsc") || name.ends_with("resources.arsc") {

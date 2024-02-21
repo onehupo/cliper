@@ -36,7 +36,4 @@ SUBCOMMANDS:
     summary    Show the summary of the package volume
 
 
-install 
-
-curl https://github.com/onehupo/cliper/releases/download/0.1.0/cliper-install.sh | sh
 

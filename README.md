@@ -1,49 +1,36 @@
-分析Android包体积的工具
+简介:
 
+包体积文件工具
 
-TODO: 生成数据：
+1. 汇总包体积信息 
+2. 显示包体积详情，支持过滤 
+3. 查找相同文件
 
-1. 为了能够生成tree的图标数据，所以需要更多的原始文件大小的信息
+SAMPLE USAGE:
 
-路径，名称，压缩大小，原始大小，分类，文件类型，文件夹的路径
+./cliper summary --input ./build/app.apk --output-csv
 
-done
+./cliper detail --input ./build/app.apk --filter-ext .png --filter-size 10000 --filter-path assets
 
-2. 可以分出去的类别
+./cliper detail --input=./build/app.apk --filter-type=Res --filter-ext=.png --filter-path=res/drawable
 
-展示所有
+./cliper same --input ./build/app.apk
 
-展示某个类别：代码 ｜ Asserts | Res  | Code | Native | Others ｜
+HELP:
 
-展示某个文件类型： png...
+'cliper --help' for all commands
 
-展示某个文件夹：文件夹的路径
+'cliper subcommands --help' for subcommands and options
 
-done
+USAGE:
+    cliper <SUBCOMMAND>
 
-3. 生成各种文件
+FLAGS:
+    -h, --help       Prints help information
+    -V, --version    Prints version information
 
-csv等文件存储
-
-done
-
-分类：
-
-    概要
-
-    详情
-
-    
-    
-
-4. 如何区分文件是否是新增的文件
-
-对比两个apk的数据是否有差异
-
-删除文件
-新增文件
-差异的文件
-
-```rust
-cargo run -- --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
-```
+SUBCOMMANDS:
+    detail     Show the detail of the package volume, support filter
+    help       Prints this message or the help of the given subcommand(s)
+    same       Show the same file in the package
+    summary    Show the summary of the package volume

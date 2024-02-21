@@ -38,4 +38,5 @@ SUBCOMMANDS:
 
 install 
 
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+curl https://github.com/onehupo/cliper/releases/download/0.1.0/cliper | sh
+

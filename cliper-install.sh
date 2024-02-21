@@ -74,7 +74,7 @@ main() {
     esac
 
     # The URL to download
-    local _url=""
+    local _url="https://github.com/onehupo/cliper/releases/download/0.1.0/cliper"
 
     local _dir
     if ! _dir="$(ensure mktemp -d)"; then
@@ -130,13 +130,13 @@ main() {
     done
 
     if $_ansi_escapes_are_valid; then
-        printf "\33[1minfo:\33[0m downloading installer\n" 1>&2
+        printf "\33[1minfo:\33[0m downloading \n" 1>&2
     else
-        printf '%s\n' 'info: downloading installer' 1>&2
+        printf '%s\n' 'info: downloading ' 1>&2
     fi
 
     ensure mkdir -p "$_dir"
-    ensure downloader "$_url" "$_file" "$_arch"
+    ensure curl -L "$_url" -o "$_file"
     ensure chmod u+x "$_file"
 
     local _tools_dir="${HOME}/.toolx/bin/"
@@ -147,7 +147,7 @@ main() {
 
     local _target_file="${_tools_dir}/cliper"
     # copy rust output file to ~/.toolx/bin/cliper
-    cp "$_rust_output_file" "$_tools_dir"
+    cp "$_file" "$_tools_dir"
 
     if [ ! -x "$_target_file" ]; then
         printf '%s\n' "Cannot execute $_target_file (likely because of mounting /tmp as noexec)." 1>&2

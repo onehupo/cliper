@@ -34,3 +34,8 @@ SUBCOMMANDS:
     help       Prints this message or the help of the given subcommand(s)
     same       Show the same file in the package
     summary    Show the summary of the package volume
+
+
+install 
+
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh

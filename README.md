@@ -38,5 +38,5 @@ SUBCOMMANDS:
 
 install 
 
-curl https://github.com/onehupo/cliper/releases/download/0.1.0/cliper | sh
+curl https://github.com/onehupo/cliper/releases/download/0.1.0/cliper-install.sh | sh
 

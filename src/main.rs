@@ -376,6 +376,11 @@ fn show_debug(debug: bool, sub_command: &str, apk_path: &str) {
     println_message(system_message.as_str());
 }
 
+
+// if run with src, use this
+//      cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
+// else use this
+//      ./cliper detail --input ./build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
 fn main() -> Result<(), String> {
     if std::env::args().len() == 1 {
         Args::clap().print_help().expect("Failed to print help");

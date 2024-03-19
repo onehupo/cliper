@@ -4,10 +4,10 @@ use std::{env, fs};
 use async_std::task;
 use csv::Writer;
 use prettytable::{row, Cell, Row, Table};
+use regex::Regex;
 use std::collections::HashMap;
 use std::path::Path;
 use structopt::StructOpt;
-use regex::Regex;
 
 mod app;
 use app::{apk_info::ApkParsedInfo, manifest_parser::parser};
@@ -36,7 +36,12 @@ fn cliper_filter(info: &CliperInfo, filter: &DetailOpts) -> bool {
     let relex = Regex::new(filter.filter_regex.as_str()).unwrap();
     let filter_regex_enable = !filter.filter_regex.is_empty() && !relex.is_match(&info.file_path);
     // 如果有一个条件满足，就返回true
-    if filter_path_enable || filter_size_enable || filter_ext_enable || filter_type_enable || filter_regex_enable {
+    if filter_path_enable
+        || filter_size_enable
+        || filter_ext_enable
+        || filter_type_enable
+        || filter_regex_enable
+    {
         result = false;
     }
     return result;
@@ -63,7 +68,6 @@ async fn read_info(filename: &str) -> ApkParsedInfo {
 }
 
 async fn read_total(filename: &str, filter: &CommonOpts) {
-    read_info(&filename).await;
     match size_reader::read_size(filename) {
         Ok(value) => {
             let mut table = Table::new();
@@ -95,7 +99,6 @@ async fn read_total(filename: &str, filter: &CommonOpts) {
 }
 
 async fn read_detail_info(filename: &str, filter: &CommonOpts, detail: &DetailOpts) {
-    read_info(&filename).await;
     match size_reader::read_detail_info(filename) {
         Ok(value) => {
             // 对value进行排序，以donwload大小进行排序
@@ -166,7 +169,7 @@ async fn read_detail_info(filename: &str, filter: &CommonOpts, detail: &DetailOp
 #[derive(Debug)]
 pub struct Md5SizeInfo {
     // | id | file Path | Name  | Size | Download | Type  | File Type | File Folder |
-    pub id : u64,
+    pub id: u64,
     pub file_path: String,
     pub name: String,
     pub size: u64,
@@ -187,7 +190,9 @@ fn group_by_md5(data: Vec<CliperInfo>) -> HashMap<String, Vec<Md5SizeInfo>> {
     let mut md5_map: HashMap<String, Vec<Md5SizeInfo>> = HashMap::new();
     // 根据 md5 值获取对应的向量，如果不存在则插入一个新的空向量
     for cliper_info in data {
-        let file_names = md5_map.entry(cliper_info.md5.clone()).or_insert_with(Vec::new);   
+        let file_names = md5_map
+            .entry(cliper_info.md5.clone())
+            .or_insert_with(Vec::new);
         let md5_size_info = Md5SizeInfo {
             id: cliper_info.id,
             file_path: cliper_info.file_path,
@@ -207,7 +212,6 @@ fn group_by_md5(data: Vec<CliperInfo>) -> HashMap<String, Vec<Md5SizeInfo>> {
 }
 
 async fn read_same_info(filename: &str, filter: &CommonOpts) {
-    read_info(&filename).await;
     match size_reader::read_detail_info_with_md5(filename) {
         Ok(value) => {
             // 对value进行排序，以donwload大小进行排序
@@ -245,7 +249,6 @@ async fn read_same_info(filename: &str, filter: &CommonOpts) {
             let mut md5_line_num = 0;
             md5_table.add_row(row!["id", "md5", "files", "size"]);
 
-
             // 打印出按 MD5 分组的文件名
             for item_info in md5_groups_convert {
                 md5_line_num += 1;
@@ -260,14 +263,13 @@ async fn read_same_info(filename: &str, filter: &CommonOpts) {
             // 按文件大小排序
             println!("");
             printline();
-            println!("Total: {}, Filter: {}", &md5_table.len()-1, md5_line_num);
+            println!("Total: {}, Filter: {}", &md5_table.len() - 1, md5_line_num);
             md5_table.printstd();
             printline();
             if filter.output_csv {
                 let output = output_path(&filter.build_path, "table_same.csv");
                 create_csv(&md5_table, &output);
             }
-            
         }
         Err(e) => {
             println!("");
@@ -278,13 +280,144 @@ async fn read_same_info(filename: &str, filter: &CommonOpts) {
     }
 }
 
+async fn diff_files(filename: &str, filename_cmp: &str, filter: &CommonOpts) {
+    let mut file_values: Vec<CliperInfo> = Vec::new();
+    let mut file_cmp_values: Vec<CliperInfo> = Vec::new();
+    match size_reader::read_detail_info(filename) {
+        Ok(value) => {
+            // 对value进行排序，以donwload大小进行排序
+            let mut value: Vec<CliperInfo> = value;
+            value.sort_by(|a, b| b.download.cmp(&a.download));
+            file_values = value;
+        }
+        Err(e) => {
+            println!("");
+            printline();
+            println!("Failed to read APK information: {}", e);
+            printline();
+        }
+    }
+    match size_reader::read_detail_info(filename_cmp) {
+        Ok(value) => {
+            // 对value进行排序，以donwload大小进行排序
+            let mut value: Vec<CliperInfo> = value;
+            value.sort_by(|a, b| b.download.cmp(&a.download));
+            file_cmp_values = value;
+        }
+        Err(e) => {
+            println!("");
+            printline();
+            println!("Failed to read APK information: {}", e);
+            printline();
+        }
+    }
+    // 对比两个文件的差异, filename - 新的文件，filename_cmp - 旧的文件
+    let mut new_files: Vec<CliperInfo> = Vec::new();
+    let mut delete_files: Vec<CliperInfo> = Vec::new();
+    let mut update_files: Vec<CliperInfo> = Vec::new();
+    // 查找新文件
+    for file in &file_values {
+        let mut find = false;
+        for file_cmp in &file_cmp_values {
+            if file.file_path == file_cmp.file_path {
+                find = true;
+                break;
+            }
+        }
+        if !find {
+            new_files.push(file.clone());
+        }
+    }
+    // 查找删除文件
+    for file_cmp in &file_cmp_values {
+        let mut find = false;
+        for file in &file_values {
+            if file.file_path == file_cmp.file_path {
+                find = true;
+                break;
+            }
+        }
+        if !find {
+            delete_files.push(file_cmp.clone());
+        }
+    }
+    // 查找更新文件
+    for file in &file_values {
+        for file_cmp in &file_cmp_values {
+            if file.file_path == file_cmp.file_path && file.download != file_cmp.download {
+                let mut result = file.clone();
+                if file_cmp.download > file.download {
+                    result.download = file_cmp.download - file.download;
+                    result.file_type = result.file_type.clone() + "▲"
+                } else {
+                    result.download = file.download - file_cmp.download;
+                    result.file_type = result.file_type.clone() + "▼"
+                }
+                if file_cmp.size > file.size {
+                    result.size = file_cmp.size - file.size;
+                } else {
+                    result.size = file.size - file_cmp.size;
+                }
+                update_files.push(result);
+            }
+        }
+    }
+    print_table("新增文件", new_files);
+    print_table("删除文件", delete_files);
+    print_table("更新文件", update_files);
+}
+
+fn print_table(title: &str, value: Vec<CliperInfo>) {
+    let mut table = Table::new();
+    let mut line_num = 0;
+    let mut total_size: i64 = 0;
+    let mut total_download: i64 = 0;
+    table.add_row(row![
+        "id",
+        "Folder Path",
+        "Name",
+        "Size",
+        "Download",
+        "Type",
+        "File Type",
+        "File Folder"
+    ]);
+    for cliper_item in &value {
+        line_num += 1;
+        if cliper_item.file_type.ends_with("▲") {
+            total_download += cliper_item.download as i64;
+        } else if cliper_item.file_type.ends_with("▼") {
+            total_download -= cliper_item.download as i64;
+        } else {
+            total_download += cliper_item.download as i64;
+        }
+        total_size += cliper_item.size as i64;
+        table.add_row(Row::new(vec![
+            // Cell::new(&cliper_item.id.to_string()),
+            Cell::new(&line_num.to_string()),
+            Cell::new(&cliper_item.file_path),
+            Cell::new(&cliper_item.name),
+            Cell::new(&cliper_item.size.to_string()),
+            Cell::new(&cliper_item.download.to_string()),
+            Cell::new(&cliper_item.file_ext),
+            Cell::new(&cliper_item.file_type.to_string()),
+            Cell::new(&cliper_item.file_folder),
+        ]));
+    }
+    println!("");
+    printline();
+    println!("Title: {}, Total: {}, Size: {}, Donwload: {}", title, &value.len(), total_size, total_download);
+    table.printstd();
+}
+
 fn output_path(build_path: &str, file_name: &str) -> String {
     let output;
     if build_path.is_empty() {
         output = build_file(file_name);
     } else if build_path.ends_with(".csv") {
         output = build_path.to_string();
-    } else { // 以 / 结尾 或 不以 / 结尾
+    } else {
+        // 以 / 结尾 或 不以 / 结尾
         output = format!("{}/{}", build_path, file_name);
     }
     return output;
@@ -342,6 +475,14 @@ fn build_file(filename: &str) -> String {
     return build_path.join(filename).to_str().unwrap().to_string();
 }
 
+fn check_build_path(opts: &mut CommonOpts) {
+    if opts.build_path.is_empty() {
+        opts.build_path = get_build_dir();
+    } else {
+        opts.build_path = absolute_path(&opts.build_path.clone())
+    }
+}
+
 fn check_input_file(filename: &str) -> Result<(), String> {
     if filename.is_empty() {
         println_message("Error: Please input the apk file: --input ./build/app.apk");
@@ -376,7 +517,6 @@ fn show_debug(debug: bool, sub_command: &str, apk_path: &str) {
     println_message(system_message.as_str());
 }
 
-
 // if run with src, use this
 //      cargo run -- --input /Users/liangrui/Work/liangrui/cliper/build/app.apk --filter-type Res --filter-ext .png --filter-size 10000 --filter-path assets
 // else use this
@@ -392,11 +532,7 @@ fn main() -> Result<(), String> {
     match args_from {
         Args::Summary { common } => {
             let mut opts = common;
-            if opts.build_path.is_empty() {
-                opts.build_path = get_build_dir();
-            } else {
-                opts.build_path = absolute_path(&opts.build_path.clone())
-            }
+            check_build_path(&mut opts);
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, "Summary", apk_path.as_str());
@@ -404,11 +540,7 @@ fn main() -> Result<(), String> {
         }
         Args::Detail { common, detail } => {
             let mut opts = common;
-            if opts.build_path.is_empty() {
-                opts.build_path = get_build_dir();
-            } else {
-                opts.build_path = absolute_path(&opts.build_path.clone())
-            }
+            check_build_path(&mut opts);
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, "Detail", apk_path.as_str());
@@ -416,15 +548,29 @@ fn main() -> Result<(), String> {
         }
         Args::Same { common } => {
             let mut opts = common;
-            if opts.build_path.is_empty() {
-                opts.build_path = get_build_dir();
-            } else {
-                opts.build_path = absolute_path(&opts.build_path.clone())
-            }
+            check_build_path(&mut opts);
             check_input_file(opts.input.as_str())?;
             let apk_path = absolute_path(&opts.input.clone());
             show_debug(opts.debug, "Same", apk_path.as_str());
             task::block_on(read_same_info(&apk_path, &opts));
+        }
+        Args::Info { common } => {
+            let mut opts = common;
+            check_build_path(&mut opts);
+            check_input_file(opts.input.as_str())?;
+            let apk_path = absolute_path(&opts.input.clone());
+            show_debug(opts.debug, "Info", apk_path.as_str());
+            task::block_on(read_info(&apk_path));
+        }
+        Args::Diff { common, input_cmp } => {
+            let mut opts = common;
+            check_build_path(&mut opts);
+            check_input_file(opts.input.as_str())?;
+            check_input_file(input_cmp.as_str())?;
+            let apk_path = absolute_path(&opts.input.clone());
+            let apk_cmp_path = absolute_path(&input_cmp.clone());
+            show_debug(opts.debug, "Diff", apk_path.as_str());
+            task::block_on(diff_files(&apk_path, &apk_cmp_path, &opts));
         }
     }
     Ok(())

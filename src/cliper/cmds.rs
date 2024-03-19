@@ -92,5 +92,18 @@ pub enum Args {
     Same {
         #[structopt(flatten)]
         common: CommonOpts,
-    }
+    },
+    /// Display package information such as package name, version code, and version name.
+    Info {
+        #[structopt(flatten)]
+        common: CommonOpts,
+    },
+    /// Compare two package files and display the differences.
+    Diff {
+        #[structopt(flatten)]
+        common: CommonOpts,
+        /// Specify the second input file path. Example: `--input_cmp ./build/app2.apk`.
+        #[structopt(long)]
+        input_cmp: String,
+    },
 }

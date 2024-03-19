@@ -26,4 +26,17 @@ impl CliperInfo {
             md5: String::new(),
         }
     }
+    pub fn clone(&self) -> CliperInfo {
+        CliperInfo {
+            id: self.id,
+            file_path: self.file_path.clone(),
+            name: self.name.clone(),
+            size: self.size,
+            download: self.download,
+            file_type: self.file_type.clone(),
+            file_ext: self.file_ext.clone(),
+            file_folder: self.file_folder.clone(),
+            md5: self.md5.clone(),
+        }
+    }
 }

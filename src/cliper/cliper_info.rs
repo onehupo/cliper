@@ -10,6 +10,7 @@ pub struct CliperInfo {
     pub file_ext: String,
     pub file_folder: String,
     pub md5: String,
+    pub diff : i64,
 }
 
 impl CliperInfo {
@@ -24,6 +25,7 @@ impl CliperInfo {
             file_ext: String::new(),
             file_folder: String::new(),
             md5: String::new(),
+            diff: 0,
         }
     }
     pub fn clone(&self) -> CliperInfo {
@@ -37,6 +39,7 @@ impl CliperInfo {
             file_ext: self.file_ext.clone(),
             file_folder: self.file_folder.clone(),
             md5: self.md5.clone(),
+            diff: self.diff,
         }
     }
 }

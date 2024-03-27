@@ -325,7 +325,9 @@ async fn diff_files(filename: &str, filename_cmp: &str, filter: &CommonOpts) {
             }
         }
         if !find {
-            new_files.push(file.clone());
+            let mut find_result_file = file.clone();
+            find_result_file.diff = file.download as i64;
+            new_files.push(find_result_file);
         }
     }
     // 查找删除文件
@@ -338,7 +340,9 @@ async fn diff_files(filename: &str, filename_cmp: &str, filter: &CommonOpts) {
             }
         }
         if !find {
-            delete_files.push(file_cmp.clone());
+            let mut find_result_file = file_cmp.clone();
+            find_result_file.diff = -(file_cmp.download as i64);
+            delete_files.push(find_result_file);
         }
     }
     // 查找更新文件
@@ -346,31 +350,20 @@ async fn diff_files(filename: &str, filename_cmp: &str, filter: &CommonOpts) {
         for file_cmp in &file_cmp_values {
             if file.file_path == file_cmp.file_path && file.download != file_cmp.download {
                 let mut result = file.clone();
-                if file_cmp.download > file.download {
-                    result.download = file_cmp.download - file.download;
-                    result.file_type = result.file_type.clone() + "▲"
-                } else {
-                    result.download = file.download - file_cmp.download;
-                    result.file_type = result.file_type.clone() + "▼"
-                }
-                if file_cmp.size > file.size {
-                    result.size = file_cmp.size - file.size;
-                } else {
-                    result.size = file.size - file_cmp.size;
-                }
+                result.diff = file_cmp.download as i64 - file.download as i64;
                 update_files.push(result);
             }
         }
     }
-    print_table("新增文件", new_files);
-    print_table("删除文件", delete_files);
-    print_table("更新文件", update_files);
+    print_table("新增文件", new_files, filter.output_csv, filter);
+    print_table("删除文件", delete_files, filter.output_csv, filter);
+    print_table("更新文件", update_files, filter.output_csv, filter);
 }
 
-fn print_table(title: &str, value: Vec<CliperInfo>) {
+// cargo run diff --input /Users/liangrui/Work/liangrui/cliper/build/14.3.0.apk --input-cmp /Users/liangrui/Work/liangrui/cliper/build/14.2.0.apk --output-csv
+fn print_table(title: &str, value: Vec<CliperInfo>, output_csv: bool, filter: &CommonOpts) {
     let mut table = Table::new();
     let mut line_num = 0;
-    let mut total_size: i64 = 0;
     let mut total_download: i64 = 0;
     table.add_row(row![
         "id",
@@ -380,18 +373,12 @@ fn print_table(title: &str, value: Vec<CliperInfo>) {
         "Download",
         "Type",
         "File Type",
-        "File Folder"
+        "File Folder",
+        "Diff"
     ]);
     for cliper_item in &value {
         line_num += 1;
-        if cliper_item.file_type.ends_with("▲") {
-            total_download += cliper_item.download as i64;
-        } else if cliper_item.file_type.ends_with("▼") {
-            total_download -= cliper_item.download as i64;
-        } else {
-            total_download += cliper_item.download as i64;
-        }
-        total_size += cliper_item.size as i64;
+        total_download += cliper_item.diff;
         table.add_row(Row::new(vec![
             // Cell::new(&cliper_item.id.to_string()),
             Cell::new(&line_num.to_string()),
@@ -402,12 +389,20 @@ fn print_table(title: &str, value: Vec<CliperInfo>) {
             Cell::new(&cliper_item.file_ext),
             Cell::new(&cliper_item.file_type.to_string()),
             Cell::new(&cliper_item.file_folder),
+            Cell::new(&cliper_item.diff.to_string()),
         ]));
     }
     println!("");
     printline();
-    println!("Title: {}, Total: {}, Size: {}, Donwload: {}", title, &value.len(), total_size, total_download);
+    println!("Title: {}, Total: {}, Donwload: {}", title, &value.len(), total_download);
     table.printstd();
+
+    if output_csv {
+        let file_name = format!("{}{}", title, ".csv");
+        let output = output_path(&filter.build_path, &file_name);
+        create_csv(&table, &output);
+    }
+
 }
 
 fn output_path(build_path: &str, file_name: &str) -> String {

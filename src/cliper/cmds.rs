@@ -64,6 +64,10 @@ pub struct DetailOpts {
 ///
 /// To find duplicate files:
 ///     `./cliper same --input ./build/app.apk`
+/// 
+/// To diff two package:
+///     `./cliper diff --input ./build/app.apk --input-cmp ./build/app2.apk`
+///     note: the input-cmp is the old package file path.
 ///
 /// Getting Help:
 ///

@@ -16,6 +16,9 @@ SAMPLE USAGE:
 
 ./cliper same --input ./build/app.apk
 
+./cliper diff --input ./build/app.apk --input-cmp ./build/app2.apk
+note: --input-cmp 是旧的文件
+
 HELP:
 
 'cliper --help' for all commands
